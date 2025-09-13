@@ -12,7 +12,7 @@ from database import db_manager
 from models import (
     NoteCreate, NoteUpdate, NoteResponse, NoteListResponse,
     NoteSearchRequest, ErrorResponse, SuccessResponse,
-    NoteSummary, NoteCategory, AutoTags, AISearchResponse,
+    NoteSummary, NoteCategory, AutoTags, AISearchResult, AISearchResponse,
     AIProcessRequest, AIProcessResponse
 )
 from auth import get_current_user, require_auth
@@ -22,7 +22,7 @@ from exceptions import (
     validation_exception_handler, general_exception_handler,
     validate_note_access, validate_note_exists
 )
-from ai_service import ai_service
+from ai_service_hf import ai_service
 
 # Configure logging
 logging.basicConfig(
@@ -111,7 +111,7 @@ async def get_notes(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(50, ge=1, le=100, description="Number of notes per page"),
     search: Optional[str] = Query(None, min_length=1, max_length=100, description="Search query"),
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Get all notes for the authenticated user.
@@ -126,12 +126,15 @@ async def get_notes(
         List of notes with pagination info
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
         if search:
             # Search notes
-            notes_data = await db_manager.search_notes(user_id, search)
+            notes_data = await db_manager.search_notes(current_user["user_id"], search)
         else:
             # Get all notes
-            notes_data = await db_manager.get_user_notes(user_id)
+            notes_data = await db_manager.get_user_notes(current_user["user_id"])
         
         # Apply pagination
         total = len(notes_data)
@@ -150,28 +153,32 @@ async def get_notes(
         )
         
     except Exception as e:
-        logger.error(f"Error fetching notes for user {user_id}: {e}")
+        logger.error(f"Error fetching notes for user {current_user['user_id']}: {e}")
         raise DatabaseError("fetch_notes", str(e))
 
 
 @app.post("/notes", response_model=NoteResponse, status_code=201)
 async def create_note(
     note_data: NoteCreate,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Create a new note.
     
     Args:
         note_data: Note creation data
-        user_id: Authenticated user ID
+        current_user: Authenticated user information
         
     Returns:
         Created note
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
+        # Create the note
         created_note = await db_manager.create_note(
-            user_id=user_id,
+            user_id=current_user["user_id"],
             title=note_data.title,
             content=note_data.content,
             is_pinned=note_data.is_pinned
@@ -180,7 +187,7 @@ async def create_note(
         return NoteResponse(**created_note)
         
     except Exception as e:
-        logger.error(f"Error creating note for user {user_id}: {e}")
+        logger.error(f"Error creating note for user {current_user['user_id']}: {e}")
         raise DatabaseError("create_note", str(e))
 
 
@@ -403,21 +410,24 @@ async def search_notes(
 @app.post("/notes/{note_id}/summarize", response_model=NoteSummary)
 async def summarize_note(
     note_id: str,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Generate AI summary for a specific note.
     
     Args:
         note_id: Note ID
-        user_id: Authenticated user ID
+        current_user: Authenticated user information
         
     Returns:
         AI-generated summary
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
         # Get the note
-        note = await db_manager.get_note_by_id(note_id, user_id)
+        note = await db_manager.get_note_by_id(note_id, current_user["user_id"])
         validate_note_exists(note, note_id)
         
         # Generate summary
@@ -428,14 +438,14 @@ async def summarize_note(
     except Exception as e:
         if isinstance(e, NoteNotFoundError):
             raise
-        logger.error(f"Error summarizing note {note_id} for user {user_id}: {e}")
+        logger.error(f"Error summarizing note {note_id} for user {current_user['user_id']}: {e}")
         raise DatabaseError("summarize_note", str(e))
 
 
 @app.post("/notes/{note_id}/categorize", response_model=NoteCategory)
 async def categorize_note(
     note_id: str,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Generate AI category for a specific note.
@@ -448,26 +458,29 @@ async def categorize_note(
         AI-generated category
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
         # Get the note
-        note = await db_manager.get_note_by_id(note_id, user_id)
+        note = await db_manager.get_note_by_id(note_id, current_user["user_id"])
         validate_note_exists(note, note_id)
         
         # Generate category
-        category_result = await ai_service.categorize_note(note["content"])
+        category_result = await ai_service.categorize_note(note["title"], note["content"])
         
         return NoteCategory(**category_result)
         
     except Exception as e:
         if isinstance(e, NoteNotFoundError):
             raise
-        logger.error(f"Error categorizing note {note_id} for user {user_id}: {e}")
+        logger.error(f"Error categorizing note {note_id} for user {current_user['user_id']}: {e}")
         raise DatabaseError("categorize_note", str(e))
 
 
 @app.post("/notes/{note_id}/auto-tag", response_model=AutoTags)
 async def auto_tag_note(
     note_id: str,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Generate AI tags for a specific note.
@@ -480,40 +493,46 @@ async def auto_tag_note(
         AI-generated tags
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
         # Get the note
-        note = await db_manager.get_note_by_id(note_id, user_id)
+        note = await db_manager.get_note_by_id(note_id, current_user["user_id"])
         validate_note_exists(note, note_id)
         
         # Generate tags
-        tags_result = await ai_service.generate_tags(note["content"])
+        tags_result = await ai_service.extract_tags(note["content"])
         
         return AutoTags(**tags_result)
         
     except Exception as e:
         if isinstance(e, NoteNotFoundError):
             raise
-        logger.error(f"Error auto-tagging note {note_id} for user {user_id}: {e}")
+        logger.error(f"Error auto-tagging note {note_id} for user {current_user['user_id']}: {e}")
         raise DatabaseError("auto_tag_note", str(e))
 
 
 @app.post("/notes/{note_id}/ai-process", response_model=AIProcessResponse)
 async def ai_process_note(
     note_id: str,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Process a note with all AI features (summary, category, tags).
     
     Args:
         note_id: Note ID
-        user_id: Authenticated user ID
+        current_user: Authenticated user information
         
     Returns:
         Comprehensive AI processing results
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
         # Get the note
-        note = await db_manager.get_note_by_id(note_id, user_id)
+        note = await db_manager.get_note_by_id(note_id, current_user["user_id"])
         validate_note_exists(note, note_id)
         
         # Process with AI
@@ -524,28 +543,31 @@ async def ai_process_note(
     except Exception as e:
         if isinstance(e, NoteNotFoundError):
             raise
-        logger.error(f"Error AI processing note {note_id} for user {user_id}: {e}")
+        logger.error(f"Error AI processing note {note_id} for user {current_user['user_id']}: {e}")
         raise DatabaseError("ai_process_note", str(e))
 
 
 @app.post("/notes/semantic-search", response_model=AISearchResponse)
 async def semantic_search_notes(
     search_request: NoteSearchRequest,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Perform semantic search on user's notes.
     
     Args:
         search_request: Search request data
-        user_id: Authenticated user ID
+        current_user: Authenticated user information
         
     Returns:
         AI-powered search results
     """
     try:
+        # Set JWT token for RLS context
+        db_manager.set_auth_token(current_user["token"])
+        
         # Get user's notes
-        notes_data = await db_manager.get_user_notes(user_id)
+        notes_data = await db_manager.get_user_notes(current_user["user_id"])
         
         # Perform semantic search
         search_results = await ai_service.semantic_search(
@@ -555,35 +577,32 @@ async def semantic_search_notes(
         
         # Convert to response models
         results = []
-        for result in search_results[:search_request.limit]:
-            note_response = NoteResponse(**result)
-            results.append({
-                "note": note_response,
-                "relevance_score": result["relevance_score"]
-            })
+        for result in search_results.get("results", [])[:search_request.limit]:
+            note_response = AISearchResult(**result)
+            results.append(note_response)
         
         return AISearchResponse(
             results=results,
             query=search_request.query,
-            total_results=len(results)
+            total_results=search_results.get("total_matches", 0)
         )
         
     except Exception as e:
-        logger.error(f"Error in semantic search for user {user_id}: {e}")
+        logger.error(f"Error in semantic search for user {current_user['user_id']}: {e}")
         raise DatabaseError("semantic_search", str(e))
 
 
 @app.post("/ai/process-content", response_model=AIProcessResponse)
 async def process_content_ai(
     request: AIProcessRequest,
-    user_id: str = Depends(require_auth)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Process any content with AI features (summary, category, tags).
     
     Args:
         request: Content processing request
-        user_id: Authenticated user ID
+        current_user: Authenticated user information
         
     Returns:
         Comprehensive AI processing results
@@ -595,7 +614,7 @@ async def process_content_ai(
         return AIProcessResponse(**ai_result)
         
     except Exception as e:
-        logger.error(f"Error AI processing content for user {user_id}: {e}")
+        logger.error(f"Error AI processing content for user {current_user['user_id']}: {e}")
         raise DatabaseError("process_content_ai", str(e))
 
 
