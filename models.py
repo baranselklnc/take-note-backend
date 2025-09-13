@@ -87,3 +87,60 @@ class UserInfo(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
+
+
+# AI Models
+class NoteSummary(BaseModel):
+    """Model for note summarization response."""
+    summary: str = Field(..., description="AI-generated summary")
+    original_length: int = Field(..., description="Original content length")
+    summary_length: int = Field(..., description="Summary length")
+    compression_ratio: float = Field(..., description="Compression ratio")
+    model: str = Field(..., description="AI model used")
+
+
+class NoteCategory(BaseModel):
+    """Model for note categorization response."""
+    category: str = Field(..., description="AI-generated category")
+    confidence: float = Field(..., description="Confidence score (0-1)")
+    model: str = Field(..., description="AI model used")
+
+
+class AutoTags(BaseModel):
+    """Model for auto-generated tags response."""
+    tags: List[str] = Field(..., description="AI-generated tags")
+    confidence_scores: List[float] = Field(..., description="Confidence scores for each tag")
+    model: str = Field(..., description="AI model used")
+
+
+class AISearchResult(BaseModel):
+    """Model for AI search results."""
+    note: NoteResponse = Field(..., description="Note data")
+    relevance_score: float = Field(..., description="Relevance score (0-1)")
+
+
+class AISearchResponse(BaseModel):
+    """Model for AI search response."""
+    results: List[AISearchResult] = Field(..., description="Search results")
+    query: str = Field(..., description="Original search query")
+    total_results: int = Field(..., description="Total number of results")
+
+
+class AIProcessRequest(BaseModel):
+    """Model for AI processing request."""
+    content: str = Field(..., min_length=1, max_length=10000, description="Content to process")
+
+
+class AIProcessResponse(BaseModel):
+    """Model for comprehensive AI processing response."""
+    summary: NoteSummary = Field(..., description="Summary result")
+    category: NoteCategory = Field(..., description="Category result")
+    tags: AutoTags = Field(..., description="Tags result")
+    processed_at: datetime = Field(..., description="Processing timestamp")
+    
+    class Config:
+        """Pydantic configuration."""
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }

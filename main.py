@@ -11,7 +11,9 @@ from config import settings
 from database import db_manager
 from models import (
     NoteCreate, NoteUpdate, NoteResponse, NoteListResponse,
-    NoteSearchRequest, ErrorResponse, SuccessResponse
+    NoteSearchRequest, ErrorResponse, SuccessResponse,
+    NoteSummary, NoteCategory, AutoTags, AISearchResponse,
+    AIProcessRequest, AIProcessResponse
 )
 from auth import get_current_user, require_auth
 from exceptions import (
@@ -20,6 +22,7 @@ from exceptions import (
     validation_exception_handler, general_exception_handler,
     validate_note_access, validate_note_exists
 )
+from ai_service import ai_service
 
 # Configure logging
 logging.basicConfig(
@@ -392,6 +395,206 @@ async def search_notes(
     except Exception as e:
         logger.error(f"Error searching notes for user {user_id}: {e}")
         raise DatabaseError("search_notes", str(e))
+
+
+# AI Endpoints
+@app.post("/notes/{note_id}/summarize", response_model=NoteSummary)
+async def summarize_note(
+    note_id: str,
+    user_id: str = Depends(require_auth)
+):
+    """
+    Generate AI summary for a specific note.
+    
+    Args:
+        note_id: Note ID
+        user_id: Authenticated user ID
+        
+    Returns:
+        AI-generated summary
+    """
+    try:
+        # Get the note
+        note = await db_manager.get_note_by_id(note_id, user_id)
+        validate_note_exists(note, note_id)
+        
+        # Generate summary
+        summary_result = await ai_service.summarize_note(note["content"])
+        
+        return NoteSummary(**summary_result)
+        
+    except Exception as e:
+        if isinstance(e, NoteNotFoundError):
+            raise
+        logger.error(f"Error summarizing note {note_id} for user {user_id}: {e}")
+        raise DatabaseError("summarize_note", str(e))
+
+
+@app.post("/notes/{note_id}/categorize", response_model=NoteCategory)
+async def categorize_note(
+    note_id: str,
+    user_id: str = Depends(require_auth)
+):
+    """
+    Generate AI category for a specific note.
+    
+    Args:
+        note_id: Note ID
+        user_id: Authenticated user ID
+        
+    Returns:
+        AI-generated category
+    """
+    try:
+        # Get the note
+        note = await db_manager.get_note_by_id(note_id, user_id)
+        validate_note_exists(note, note_id)
+        
+        # Generate category
+        category_result = await ai_service.categorize_note(note["content"])
+        
+        return NoteCategory(**category_result)
+        
+    except Exception as e:
+        if isinstance(e, NoteNotFoundError):
+            raise
+        logger.error(f"Error categorizing note {note_id} for user {user_id}: {e}")
+        raise DatabaseError("categorize_note", str(e))
+
+
+@app.post("/notes/{note_id}/auto-tag", response_model=AutoTags)
+async def auto_tag_note(
+    note_id: str,
+    user_id: str = Depends(require_auth)
+):
+    """
+    Generate AI tags for a specific note.
+    
+    Args:
+        note_id: Note ID
+        user_id: Authenticated user ID
+        
+    Returns:
+        AI-generated tags
+    """
+    try:
+        # Get the note
+        note = await db_manager.get_note_by_id(note_id, user_id)
+        validate_note_exists(note, note_id)
+        
+        # Generate tags
+        tags_result = await ai_service.generate_tags(note["content"])
+        
+        return AutoTags(**tags_result)
+        
+    except Exception as e:
+        if isinstance(e, NoteNotFoundError):
+            raise
+        logger.error(f"Error auto-tagging note {note_id} for user {user_id}: {e}")
+        raise DatabaseError("auto_tag_note", str(e))
+
+
+@app.post("/notes/{note_id}/ai-process", response_model=AIProcessResponse)
+async def ai_process_note(
+    note_id: str,
+    user_id: str = Depends(require_auth)
+):
+    """
+    Process a note with all AI features (summary, category, tags).
+    
+    Args:
+        note_id: Note ID
+        user_id: Authenticated user ID
+        
+    Returns:
+        Comprehensive AI processing results
+    """
+    try:
+        # Get the note
+        note = await db_manager.get_note_by_id(note_id, user_id)
+        validate_note_exists(note, note_id)
+        
+        # Process with AI
+        ai_result = await ai_service.process_note_ai(note["content"])
+        
+        return AIProcessResponse(**ai_result)
+        
+    except Exception as e:
+        if isinstance(e, NoteNotFoundError):
+            raise
+        logger.error(f"Error AI processing note {note_id} for user {user_id}: {e}")
+        raise DatabaseError("ai_process_note", str(e))
+
+
+@app.post("/notes/semantic-search", response_model=AISearchResponse)
+async def semantic_search_notes(
+    search_request: NoteSearchRequest,
+    user_id: str = Depends(require_auth)
+):
+    """
+    Perform semantic search on user's notes.
+    
+    Args:
+        search_request: Search request data
+        user_id: Authenticated user ID
+        
+    Returns:
+        AI-powered search results
+    """
+    try:
+        # Get user's notes
+        notes_data = await db_manager.get_user_notes(user_id)
+        
+        # Perform semantic search
+        search_results = await ai_service.semantic_search(
+            search_request.query,
+            notes_data
+        )
+        
+        # Convert to response models
+        results = []
+        for result in search_results[:search_request.limit]:
+            note_response = NoteResponse(**result)
+            results.append({
+                "note": note_response,
+                "relevance_score": result["relevance_score"]
+            })
+        
+        return AISearchResponse(
+            results=results,
+            query=search_request.query,
+            total_results=len(results)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in semantic search for user {user_id}: {e}")
+        raise DatabaseError("semantic_search", str(e))
+
+
+@app.post("/ai/process-content", response_model=AIProcessResponse)
+async def process_content_ai(
+    request: AIProcessRequest,
+    user_id: str = Depends(require_auth)
+):
+    """
+    Process any content with AI features (summary, category, tags).
+    
+    Args:
+        request: Content processing request
+        user_id: Authenticated user ID
+        
+    Returns:
+        Comprehensive AI processing results
+    """
+    try:
+        # Process content with AI
+        ai_result = await ai_service.process_note_ai(request.content)
+        
+        return AIProcessResponse(**ai_result)
+        
+    except Exception as e:
+        logger.error(f"Error AI processing content for user {user_id}: {e}")
+        raise DatabaseError("process_content_ai", str(e))
 
 
 if __name__ == "__main__":

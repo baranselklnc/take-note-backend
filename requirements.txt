@@ -9,3 +9,10 @@ python-dotenv==1.0.0
 httpx==0.24.1
 pytest==7.4.3
 pytest-asyncio==0.21.1
+
+# AI Dependencies (Optional - will work without these)
+# transformers==4.36.2
+# torch==2.2.0
+# tokenizers==0.15.0
+# datasets==2.16.1
+# accelerate==0.25.0
