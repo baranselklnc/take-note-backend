@@ -23,7 +23,7 @@ class Settings:
     # JWT Configuration
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))  # 7 gün
     
     # Database Configuration
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
