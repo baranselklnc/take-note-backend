@@ -115,8 +115,12 @@ class AutoTags(BaseModel):
 
 class AISearchResult(BaseModel):
     """Model for AI search results."""
-    note: NoteResponse = Field(..., description="Note data")
-    relevance_score: float = Field(..., description="Relevance score (0-1)")
+    note_id: str = Field(..., description="Note ID")
+    title: str = Field(..., description="Note title")
+    similarity_score: float = Field(..., description="Similarity score (0-1)")
+    matched_words: Optional[List[str]] = Field(None, description="Matched words")
+    matched_content: Optional[str] = Field(None, description="Matched content snippet")
+    model: str = Field(..., description="AI model used")
 
 
 class AISearchResponse(BaseModel):
@@ -133,10 +137,16 @@ class AIProcessRequest(BaseModel):
 
 class AIProcessResponse(BaseModel):
     """Model for comprehensive AI processing response."""
-    summary: NoteSummary = Field(..., description="Summary result")
-    category: NoteCategory = Field(..., description="Category result")
-    tags: AutoTags = Field(..., description="Tags result")
-    processed_at: datetime = Field(..., description="Processing timestamp")
+    summary: str = Field(..., description="AI-generated summary")
+    summary_model: str = Field(..., description="Summary model used")
+    categories: List[str] = Field(..., description="AI-generated categories")
+    category_scores: List[float] = Field(..., description="Category confidence scores")
+    category_model: str = Field(..., description="Category model used")
+    tags: List[str] = Field(..., description="AI-generated tags")
+    tag_scores: List[float] = Field(..., description="Tag confidence scores")
+    tag_model: str = Field(..., description="Tag model used")
+    processing_status: str = Field(..., description="Processing status")
+    processed_at: datetime = Field(default_factory=datetime.now, description="Processing timestamp")
     
     class Config:
         """Pydantic configuration."""
