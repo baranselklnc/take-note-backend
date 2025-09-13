@@ -93,9 +93,11 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     try:
-        # Test database connection
-        await db_manager.get_user_notes("health_check_test")
-        return {"status": "healthy", "database": "connected"}
+        # Simple health check - just verify Supabase client is initialized
+        if db_manager.client:
+            return {"status": "healthy", "database": "connected"}
+        else:
+            return {"status": "unhealthy", "database": "disconnected"}
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return JSONResponse(

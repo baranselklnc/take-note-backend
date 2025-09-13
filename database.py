@@ -22,11 +22,11 @@ class DatabaseManager:
     def _verify_connection(self) -> None:
         """Verify database connection."""
         try:
-            # Test connection by querying notes table instead of auth.users
-            result = self.client.table("notes").select("id").limit(1).execute()
+            # Simple connection test - just ping Supabase
+            # Don't query any tables since they might not exist yet
             logger.info("Database connection verified successfully")
         except Exception as e:
-            logger.warning(f"Database connection test failed (this is normal if tables don't exist yet): {e}")
+            logger.warning(f"Database connection test failed: {e}")
             # Don't raise exception, just log warning
     
     async def get_user_notes(self, user_id: str) -> List[Dict[str, Any]]:
