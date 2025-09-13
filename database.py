@@ -19,6 +19,11 @@ class DatabaseManager:
         )
         self._verify_connection()
     
+    def set_auth_token(self, token: str):
+        """Set the JWT token for RLS context."""
+        # Set the JWT token in the postgrest client headers
+        self.client.postgrest.auth(token)
+    
     def _verify_connection(self) -> None:
         """Verify database connection."""
         try:
