@@ -9,7 +9,8 @@ Bu proje, **Flutter** mobil uygulaması için geliştirilmiş **FastAPI** tabanl
 * **AI Özellikleri:** Hugging Face ile not özetleme, kategorileme ve otomatik etiketleme
 * **Anlamsal Arama:** Akıllı arama ile notlarda anlamsal benzerlik arama
 * **Sabitleme:** Notları sabitleme özelliği
-* **Yumuşak Silme:** Notları geri alınabilir şekilde silme
+* **Soft Delete:** Notları geri alınabilir şekilde silme
+* **Mobil Entegrasyon:** Flutter uygulamaları için otomatik backend keşfi
 * **Kolay Kurulum:** Minimal kurulum adımları ile hızlı başlangıç
 * **API Dokümantasyonu:** Otomatik oluşturulan interaktif API dokümantasyonu (`/docs`)
 
@@ -22,7 +23,7 @@ Bu proje, **Flutter** mobil uygulaması için geliştirilmiş **FastAPI** tabanl
 * **Uvicorn:** Asenkron server
 * **MCP (Model Context Protocol):** Supabase yönetimi
 
-## 🏁 Başlangıç
+##  Başlangıç
 
 ### Supabase Kurulumu
 
@@ -81,6 +82,8 @@ uvicorn main:app --reload
 
 Sunucu `http://localhost:8000` adresinde çalışacaktır.
 
+**Not:** Fiziksel mobil cihazlardan erişim için sunucu otomatik olarak `0.0.0.0` host'unda çalışır ve `/server-info` endpoint'i ile IP adresini sağlar.
+
 ##  API Dokümantasyonu & Authentication
 
 API dokümantasyonu sunucu çalışırken `http://localhost:8000/docs` adresinde erişilebilir.
@@ -121,6 +124,7 @@ curl -X POST 'https://your-project.supabase.co/auth/v1/signup' \
 
 ### Yardımcı Araçlar
 * `GET /health` - Sistem sağlık kontrolü
+* `GET /server-info` - Sunucu bilgileri (IP adresi, port, URL'ler)
 * `GET /notes/search` - Basit metin arama
 
 ##  AI Özellikleri
@@ -164,32 +168,32 @@ CREATE TABLE notes (
 );
 ```
 
-## 🎯 Project Overview
+##  Project Overview
 
 Bu proje **C o n n e c t i n n o** için geliştirilmiş **not alma uygulaması** backend API'sidir. **Flutter** mobil uygulaması ile entegre çalışır.
 
 ###  Task Requirements
 
-#### Backend API Gereksinimleri ✅
-- ✅ **CRUD İşlemleri:** GET, POST, PUT, DELETE /notes endpoint'leri
-- ✅ **Kimlik Doğrulama:** Supabase JWT token kimlik doğrulama
-- ✅ **Güvenlik:** Row Level Security (RLS) ile kullanıcı veri izolasyonu
-- ✅ **Doğrulama:** Pydantic ile giriş doğrulama
-- ✅ **Hata Yönetimi:** Kapsamlı hata yönetimi
+#### Backend API Gereksinimleri 
+-  **CRUD İşlemleri:** GET, POST, PUT, DELETE /notes endpoint'leri
+-  **Kimlik Doğrulama:** Supabase JWT token kimlik doğrulama
+-  **Güvenlik:** Row Level Security (RLS) ile kullanıcı veri izolasyonu
+-  **Doğrulama:** Pydantic ile giriş doğrulama
+-  **Hata Yönetimi:** Kapsamlı hata yönetimi
 
 #### AI Özellikleri (Bonus) 
-- ✅ **Özetleme:** Notları otomatik özetleme
-- ✅ **Otomatik Etiketleme:** Türkçe NER ile otomatik etiketleme
-- ✅ **Kategorileme:** Notları kategorileme
-- ✅ **Anlamsal Arama:** Akıllı arama özelliği
+-  **Özetleme:** Notları otomatik özetleme
+-  **Otomatik Etiketleme:** Türkçe NER ile otomatik etiketleme
+-  **Kategorileme:** Notları kategorileme
+-  **Anlamsal Arama:** Akıllı arama özelliği
 
-#### Mimari ve Kalite ✅
-- ✅ **Temiz Mimari:** UI, iş mantığı, veri katmanları ayrımı
-- ✅ **Üretim Hazır:** Gerçek uygulama kalitesinde kod
-- ✅ **Dokümantasyon:** Kapsamlı README ve API dokümantasyonu
-- ✅ **Kolay Kurulum:** Minimal kurulum adımları
+#### Mimari ve Kalite 
+-  **Temiz Mimari:** UI, iş mantığı, veri katmanları ayrımı
+-  **Üretim Hazır:** Gerçek uygulama kalitesinde kod
+-  **Dokümantasyon:** Kapsamlı README ve API dokümantasyonu
+-  **Kolay Kurulum:** Minimal kurulum adımları
 
-## 🚀 Production Deployment
+##  Production Deployment
 
 Production için:
 
@@ -200,12 +204,12 @@ Production için:
 
 ##  Evaluation Criteria Compliance
 
-### Kod Kalitesi ve Organizasyon ✅
+### Kod Kalitesi ve Organizasyon 
 - **Temiz Mimari:** Katmanlar arası net ayrım
 - **Sürdürülebilirlik:** Modüler ve genişletilebilir kod yapısı
 - **Okunabilirlik:** Açıklayıcı değişken isimleri ve dokümantasyon
 
-### API Uygulaması ✅
+### API Uygulaması 
 - **Temiz API'ler:** RESTful endpoint tasarımı
 - **Güvenlik:** JWT kimlik doğrulama ve RLS
 - **Hata Yönetimi:** Anlamlı hata mesajları
@@ -217,30 +221,66 @@ Production için:
 
 
 
-### API Integration Example
-```dart
-// Flutter'da API kullanımı
-class NotesService {
-  Future<List<Note>> getNotes() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/notes'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    return Note.fromJsonList(response.body);
-  }
-  
-  Future<Note> createNote(Note note) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/notes'),
-      headers: {'Authorization': 'Bearer $token'},
-      body: note.toJson(),
-    );
-    return Note.fromJson(response.body);
-  }
+### API Kullanım Örneği
+```bash
+# Notları listeler
+curl -X GET "http://localhost:8000/notes" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Yeni not oluştur
+curl -X POST "http://localhost:8000/notes" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Notu",
+    "content": "Bu bir test notudur."
+  }'
+```
+
+##  Mobil Entegrasyon Desteği
+
+### Otomatik Backend Keşfi
+
+Backend, farklı bilgisayarlarda çalıştırıldığında mobil uygulamaların otomatik olarak backend'i bulması için `/server-info` endpoint'i sağlar.
+
+#### Server Info Endpoint
+```python
+@app.get("/server-info")
+async def get_server_info():
+    """Sunucu bilgilerini döndürür (IP adresi, port, URL'ler)"""
+    port = int(os.getenv("PORT", 8000))
+    local_ip = get_local_ip()  # Otomatik IP tespiti
+    
+    return {
+        "ip_address": local_ip,
+        "port": port,
+        "base_url": f"http://{local_ip}:{port}",
+        "api_url": f"http://{local_ip}:{port}/api/v1",
+        "docs_url": f"http://{local_ip}:{port}/docs",
+        "version": settings.APP_VERSION
+    }
+```
+
+### Response Örneği
+```json
+{
+    "ip_address": "192.168.1.100",
+    "port": 8000,
+    "base_url": "http://192.168.1.100:8000",
+    "api_url": "http://192.168.1.100:8000/api/v1",
+    "docs_url": "http://192.168.1.100:8000/docs",
+    "version": "1.0.0"
 }
 ```
 
-## 📝 Project Structure
+### Network Desteği
+
+- **Localhost:** `http://localhost:8000` (emülatör/development)
+- **Network Access:** `http://192.168.1.100:8000` (fiziksel cihazlar)
+- **Host Binding:** Sunucu `0.0.0.0` host'unda çalışır (tüm network interface'ler)
+- **Port:** 8000 (varsayılan, PORT environment variable ile değiştirilebilir)
+
+##  Project Structure
 
 ```
 take-note-backend/
@@ -260,12 +300,13 @@ take-note-backend/
 
 ##  Key Features Implemented
 
-### ✅ Temel Gereksinimler
+###  Temel Gereksinimler
 - **CRUD API:** Tam CRUD operasyonları
 - **Kimlik Doğrulama:** Supabase JWT entegrasyonu
 - **Güvenlik:** Row Level Security (RLS)
 - **Doğrulama:** Kapsamlı giriş doğrulama
 - **Hata Yönetimi:** Üretim hazır hata yönetimi
+- **Mobil Entegrasyon:** Otomatik backend keşfi ile Flutter uyumluluğu
 
 ###  Bonus Özellikler
 - **AI Özetleme:** Hugging Face BART modeli
@@ -274,7 +315,7 @@ take-note-backend/
 - **Sabitleme/Sabitlememe:** Not önceliklendirme
 - **Yumuşak Silme:** Geri alma işlevselliği desteği
 
-## 🔧 Development Setup
+##  Development Setup
 
 ### Prerequisites
 - Python 3.8+
