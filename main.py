@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
+import socket
+import os
 from typing import List, Optional
 
 from config import settings
@@ -104,6 +106,34 @@ async def health_check():
             status_code=503,
             content={"status": "unhealthy", "database": "disconnected", "error": str(e)}
         )
+
+
+def get_local_ip():
+    """Get the local IP address of the machine."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+        return local_ip
+    except Exception:
+
+        return "127.0.0.1"
+
+
+@app.get("/server-info")
+async def get_server_info():
+    """Get server information including IP address and port."""
+    port = int(os.getenv("PORT", 8000))
+    local_ip = get_local_ip()
+    
+    return {
+        "ip_address": local_ip,
+        "port": port,
+        "base_url": f"http://{local_ip}:{port}",
+        "api_url": f"http://{local_ip}:{port}/api/v1",
+        "docs_url": f"http://{local_ip}:{port}/docs" if settings.DEBUG else None,
+        "version": settings.APP_VERSION
+    }
 
 
 @app.get("/notes", response_model=NoteListResponse)
